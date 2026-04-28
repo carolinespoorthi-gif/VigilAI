@@ -1,0 +1,63 @@
+/* ── Typography Selectors ── */
+:root {
+  --bg: #B8E3E9;
+  --text: #0B2E33;
+}
+
+[data-theme="dark"] {
+  --bg: #0B2E33;
+  --text: #E6F7F9;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+[data-font="serif"],
+[data-font="serif"] * {
+  font-family: 'Georgia', serif !important;
+}
+[data-font="mono"],
+[data-font="mono"] * {
+  font-family: 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace !important;
+}
+[data-font="modern"],
+[data-font="modern"] * {
+  font-family: 'Poppins', sans-serif !important;
+}
+[data-font="tech"],
+[data-font="tech"] * {
+  font-family: 'Inter', sans-serif !important;
+}
+
+/* ── Layout Density Selectors ── */
+[data-density="compact"] .p-6,
+[data-density="compact"] .p-8 {
+  padding: 1rem !important;
+}
+[data-density="compact"] .mb-8,
+[data-density="compact"] .mb-4 {
+  margin-bottom: 0.5rem !important;
+}
+[data-density="compact"] .space-y-6 > * + * {
+  margin-top: 0.75rem !important;
+}
+[data-density="compact"] .py-8 {
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+}
+
+/* ── Page enter animation ── */
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+main { animation: pageIn 0.2s ease-out; }
+
+.metrics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}

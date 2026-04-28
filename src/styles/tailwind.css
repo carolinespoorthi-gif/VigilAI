@@ -1,0 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Hard Fixed Colors for True Theming */
+    --bg: #B8E3E9;
+    --card: #93B1B5;
+    --text: #0B2E33;
+    --border: #93B1B5;
+
+    /* Tailwind Mappings */
+    --color-background: var(--bg);
+    --color-foreground: var(--text);
+    --color-border: var(--border);
+    --color-input: #FFFFFF;
+    --color-ring: #4F7C82;
+
+    --color-card: var(--card);
+    --color-card-foreground: var(--text);
+
+    --color-popover: var(--card);
+    --color-popover-foreground: var(--text);
+
+    --color-muted: rgba(184, 227, 233, 0.4);
+    --color-muted-foreground: #4F7C82;
+
+    --color-primary: #0B2E33;
+    --color-primary-foreground: #FFFFFF;
+
+    --color-secondary: #93B1B5;
+    --color-secondary-foreground: #0B2E33;
+
+    --color-accent: #4F7C82;
+    --color-accent-foreground: #FFFFFF;
+
+    /* Success / Warning / Error */
+    --color-success: #059669;
+    --color-success-foreground: #FFFFFF;
+    --color-warning: #D97706;
+    --color-warning-foreground: #FFFFFF;
+    --color-error: #DC2626;
+    --color-error-foreground: #FFFFFF;
+    --color-destructive: #DC2626;
+    --color-destructive-foreground: #FFFFFF;
+
+    /* Risk level colors */
+    --risk-critical: #DC2626;
+    --risk-high: #EA580C;
+    --risk-medium: #CA8A04;
+    --risk-low: #16A34A;
+    --risk-none: #4F7C82;
+  }
+
+  [data-theme="dark"] {
+    --bg: #0B2E33;
+    --card: #123E45;
+    --text: #E6F7F9;
+    --border: #1F5A63;
+    
+    --color-muted-foreground: #93B1B5;
+    --color-primary: #E6F7F9;
+    --color-primary-foreground: #0B2E33;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Risk badge utilities */
+  .risk-critical { background-color: var(--risk-critical); color: white; }
+  .risk-high     { background-color: var(--risk-high);     color: white; }
+  .risk-medium   { background-color: var(--risk-medium);   color: white; }
+  .risk-low      { background-color: var(--risk-low);      color: white; }
+  .risk-none     { background-color: var(--risk-none);     color: white; }
+
+  /* Brand gradient */
+  .vigil-gradient {
+    background: linear-gradient(135deg, #0B2E33 0%, #4F7C82 100%);
+  }
+
+  /* Overlay animation */
+  @keyframes overlayFadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .overlay-animate {
+    animation: overlayFadeIn 0.3s ease-out forwards;
+  }
+
+  /* Pulse for critical risk */
+  @keyframes criticalPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); }
+    50%       { box-shadow: 0 0 0 12px rgba(220,38,38,0); }
+  }
+  .critical-pulse {
+    animation: criticalPulse 1.5s infinite;
+  }
+}

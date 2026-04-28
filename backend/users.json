@@ -1,0 +1,50 @@
+{
+    "admin": {
+        "username": "admin",
+        "email": "admin@vigil.ai",
+        "full_name": "Admin User",
+        "role": "admin",
+        "hashed_password": "$2b$12$lqxKXALWAwBi46G2WjUo2Ou4lY0d2ZCTg2.28LW3cFCo2uQNdR5va",
+        "disabled": false
+    },
+    "user": {
+        "username": "user",
+        "email": "user@vigil.ai",
+        "full_name": "Standard User",
+        "role": "user",
+        "hashed_password": "$2b$12$QKnhZfMG/AuxpYHE27kLcOlG3rATjVdtEuUbDoP879RNIRwJTRiQe",
+        "disabled": false
+    },
+    "Nikita": {
+        "username": "Nikita",
+        "email": "nikita123@gmail.com",
+        "full_name": null,
+        "role": "user",
+        "disabled": false,
+        "hashed_password": "$2b$12$GlLEPBeAgRKLbNN7yc.nweuk24rWm9xXMH9BQe6RuVfBYSL0U.fKG"
+    },
+    "Nikita_V670": {
+        "username": "Nikita_V670",
+        "email": "nikita.vade456@gmail.com",
+        "full_name": null,
+        "role": "user",
+        "disabled": false,
+        "hashed_password": "$2b$12$d17dDfbx1V3bxloJpYLON.vMCbxZLjRioTVTJ8qheS4211MoShHcm"
+    },
+    "Nikita_65": {
+        "username": "Nikita_65",
+        "email": "carolinespoorthi457@gmail.com",
+        "full_name": null,
+        "role": "user",
+        "disabled": false,
+        "hashed_password": "$2b$12$6kYttnGsPwwrwICtfgIMyO46gExoGHIqM2yA/z6gwppoL26FSZc5e"
+    },
+    "user@112": {
+        "username": "user@112",
+        "email": "valletshirl@gmail.com",
+        "full_name": null,
+        "role": "user",
+        "disabled": false,
+        "hashed_password": "$2b$12$02DBGS75odEw6EhiDR2zD.55nEXTs/gjxpj7rPdtRFSHEVMX5x2/C"
+    }
+}
