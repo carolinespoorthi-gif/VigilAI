@@ -40,6 +40,15 @@ _adv  = RemediationAdvisor()
 # In-memory scan store keyed by scan_id
 _SCAN_STORE: Dict[str, Dict[str, Any]] = {}
 
+# Redaction tokens — must be non-matchable by PII regex patterns
+_REDACTION_MARKERS = [
+    '[REMOVED]', '[REDACTED]', '[PASSWORD REMOVED]', '[CVV REMOVED]',
+    '[API KEY REMOVED]', '[OTP REMOVED]', '[PIN REMOVED]',
+    '[SSN REDACTED]', '[CC REDACTED]', '[EMAIL REDACTED]',
+    '[PHONE REDACTED]', '[AADHAAR REDACTED]', '[NAME REDACTED]',
+    '[ADDRESS REDACTED]', '[DOB REDACTED]', '[PASSPORT REDACTED]',
+]
+
 from contextlib import asynccontextmanager
 from database import (
     get_database,
@@ -103,6 +112,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Vigil AI Compliance Guardian", lifespan=lifespan)
+
+@app.get("/test-db")
+async def test_db():
+    db = get_database()
+    await db["test"].insert_one({"msg": "backend connected"})
+    return {"status": "ok"}
+    
 app.include_router(auth_router)
 
 app.add_middleware(
@@ -187,13 +203,11 @@ def _run_pipeline(content: str, source_name: str, dataset_type: str,
     
     # 📉 FORCE LOW RISK AFTER REMEDIATION
     if source_name.startswith("remediated_"):
-        risk_score = min(risk_score, 10.0)
+        risk_score = min(risk_score, 5.0)
 
-    # 📉 POST-MASKING RISK REDUCTION: if content has masking markers, cap risk
-    if any(marker in content for marker in ['[REMOVED]', '****', '[REDACTED]',
-                                             '[PASSWORD REMOVED]', '[CVV REMOVED]',
-                                             '[API KEY REMOVED]', 'XXXX-XXXX-']):
-        risk_score = min(risk_score, 30.0)
+    # 📉 POST-MASKING RISK REDUCTION: if content has redaction markers, cap risk
+    if any(marker in content for marker in _REDACTION_MARKERS):
+        risk_score = min(risk_score, 20.0)
 
     risk_level = _risk.severity(risk_score)
 
@@ -408,23 +422,39 @@ def _generate_root_causes(findings):
 
 
 def _generate_before_after(findings):
+    """
+    Generate before/after display snippets for the PDF report.
+    Shows original PII value → redaction token (matching utils.py masking format).
+    """
+    _TOKEN_MAP = {
+        'ssns':           '[SSN REDACTED]',
+        'credit_cards':   '[CC REDACTED]',
+        'emails':         '[EMAIL REDACTED]',
+        'phones':         '[PHONE REDACTED]',
+        'aadhaar':        '[AADHAAR REDACTED]',
+        'sensitive_ids':  '[PASSPORT REDACTED]',
+        'dates_of_birth': '[DOB REDACTED]',
+        'addresses':      '[ADDRESS REDACTED]',
+        'names':          '[NAME REDACTED]',
+        'passwords':      '[PASSWORD REMOVED]',
+        'api_keys':       '[API KEY REMOVED]',
+        'cvv':            '[CVV REMOVED]',
+        'otp':            '[OTP REMOVED]',
+        'pin':            '[PIN REMOVED]',
+    }
     ba = []
     for k, vals in findings.items():
-        if k in ('detailed_findings', 'counts', 'violated_regulations', 'risk_categories'): continue
+        if k in ('detailed_findings', 'counts', 'violated_regulations', 'risk_categories'):
+            continue
         if isinstance(vals, list) and vals:
-            for v in vals[:2]:  # take up to 2 examples per type
-                t = k.upper()
-                val_str = str(v)
-                masked = val_str
-                if any(x in t for x in ('SSN', 'AADHAAR', 'CREDIT', 'PASSWORD', 'API_KEY')):
-                    masked = '*' * max(len(val_str)-4, 0) + val_str[-4:] if len(val_str)>4 else 'Masked'
-                elif 'EMAIL' in t and '@' in val_str:
-                    local, domain = val_str.split('@', 1)
-                    masked = (local[0] + '***' if len(local)>0 else '***') + '@' + domain
-                else:
-                    masked = '*' * len(val_str) if len(val_str) <= 3 else val_str[:2] + '*' * (len(val_str)-2)
-                ba.append({'type': k.replace('_',' ').title(), 'before': val_str, 'after': masked})
-            if len(ba) >= 5:
+            token = _TOKEN_MAP.get(k, '[REDACTED]')
+            for v in vals[:2]:
+                ba.append({
+                    'type':   k.replace('_', ' ').title(),
+                    'before': str(v),
+                    'after':  token,
+                })
+            if len(ba) >= 6:
                 break
     return ba
 
@@ -447,6 +477,36 @@ async def chat(req: ChatRequest):
         if "4.3" in message or "it compliance" in message:
             return JSONResponse({"reply": "Under NAAC 4.3 (IT Infrastructure), you must enforce strict cybersecurity, maintain firewalls, manage a suitable student-computer ratio, and keep hardware inventories updated."})
         return JSONResponse({"reply": "NAAC compliance involves infrastructure, library resources, IT standards, and maintenance metrics. Please specify a sub-criterion for more details."})
+
+    # The 15 predefined questions
+    if "what is risk score" in message or "risk score" in message and "what" in message:
+        return JSONResponse({"reply": "The risk score is a numerical value (0-100) indicating the severity of data exposure and compliance violations in your document. Higher scores indicate greater risk."})
+    if "what is compliance score" in message or "compliance score" in message and "what" in message:
+        return JSONResponse({"reply": "The compliance score is a measure (0-100) of how well your document adheres to security and privacy standards. It is inversely related to your risk score."})
+    if "why is my risk high" in message or "why" in message and "risk high" in message:
+        return JSONResponse({"reply": "Your risk may be high because the document contains exposed sensitive data like SSNs, credit card numbers, passwords, or lacks proper security controls and masking."})
+    if "how to reduce risk" in message or "reduce risk" in message:
+        return JSONResponse({"reply": "You can reduce risk by remediating the document. This involves masking sensitive PII, removing credentials, and adding proper security policies and encryption."})
+    if "what is gdpr" in message:
+        return JSONResponse({"reply": "GDPR (General Data Protection Regulation) is a strict privacy law in the EU that mandates data minimization, consent, and protection of personal data."})
+    if "what is iso 27001" in message or "iso 27001" in message:
+        return JSONResponse({"reply": "ISO 27001 is an international standard for managing information security, requiring organizations to establish, implement, maintain, and continually improve an Information Security Management System (ISMS)."})
+    if "what is hipaa" in message or "hipaa" in message:
+        return JSONResponse({"reply": "HIPAA (Health Insurance Portability and Accountability Act) is a US law designed to provide privacy standards to protect patients' medical records and other health information."})
+    if "what is pci-dss" in message or "pci-dss" in message or "pci dss" in message:
+        return JSONResponse({"reply": "PCI-DSS (Payment Card Industry Data Security Standard) is a set of security standards designed to ensure that all companies that accept, process, store or transmit credit card information maintain a secure environment."})
+    if "what is remediation" in message or "remediation" in message:
+        return JSONResponse({"reply": "Remediation is the process of fixing compliance violations by masking sensitive identifiers, removing exposed credentials, and updating policy language to meet regulatory standards."})
+    if "how does vigil ai work" in message or "how does vigil ai" in message:
+        return JSONResponse({"reply": "Vigil AI analyzes your documents for sensitive PII and compliance gaps, calculates risk and compliance scores, and automatically applies redaction and policy corrections to ensure regulatory alignment."})
+    if "what is risk heatmap" in message or "risk heatmap" in message:
+        return JSONResponse({"reply": "The risk heatmap provides a visual representation of your document's compliance status across different regulatory frameworks (like GDPR, HIPAA) using color codes (Green/Amber/Red)."})
+    if "what are priority alerts" in message or "priority alerts" in message:
+        return JSONResponse({"reply": "Priority alerts highlight the most critical and urgent security issues found in your scans, such as exposed passwords or unencrypted SSNs, that require immediate attention."})
+    if "how is compliance calculated" in message or "compliance calculated" in message:
+        return JSONResponse({"reply": "Compliance is calculated based on the inverse of the risk score (Compliance = 100 - Risk Score). Deductions are made for each detected entity based on its severity and context."})
+    if "what data is considered sensitive" in message or "sensitive data" in message:
+        return JSONResponse({"reply": "Sensitive data includes Personally Identifiable Information (PII) like SSNs, Aadhaar, dates of birth, financial details (credit cards), health records, and secrets (passwords, API keys)."})
 
     if "pii" in message or "scan" in message:
         res = pii_detector_agent(req.message)
@@ -814,20 +874,62 @@ async def remediate_document(scan_id: str):
     elif filename.lower().endswith(".yaml") or filename.lower().endswith(".yml"):
         file_format = "yaml"
 
-    # ── Apply remediation (Phase 1: unsafe phrases, Phase 2: remove, Phase 3: mask) ──
+    # ── Apply remediation ────────────────────────────────────────────────
     remediated_content = generate_remediated_content(original_content, raw_findings, file_format)
 
     # Store remediated content
     _SCAN_STORE[scan_id]["remediated_content"] = remediated_content
     _SCAN_STORE[scan_id]["remediation_applied"] = True
 
-    # ── Re-run the FULL pipeline on the remediated content ──
+    # ── Validate remediation actually changed the content ─────────────────────
+    if remediated_content == original_content:
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "Remediation had no effect: document content unchanged. "
+                               "Ensure the document contains detectable PII."}
+        )
+
+    # ── Re-run the FULL pipeline on the remediated content ──────────────
     dataset_type = scan.get("dataset_type", "document")
     new_scan_id, ai_result, total_found = _run_pipeline(
         remediated_content, f"remediated_{filename}", dataset_type
     )
 
-    # Store reanalysis results in the original scan record
+    # ── Build before/after snapshots and persist them in the original scan ──
+    # BEFORE = the ORIGINAL scan's own fields (never overwritten)
+    before_snapshot = {
+        "risk_score":         scan["risk_score"],
+        "compliance_score":   scan["compliance_score"],
+        "risk_level":         scan["risk_level"],
+        "compliance_status":  scan["compliance_status"],
+        "risk_items":         int(scan.get("risk_items", 0)),
+        "violated_regulations": scan.get("violated_regulations", []),
+        "entity_details":     scan.get("entity_details", []),
+        "data_categories":    scan.get("data_categories", {}),
+        "key_findings":       scan.get("key_findings", []),
+        "data_issues":        scan.get("data_issues", []),
+        "root_causes":        scan.get("root_causes", []),
+        "before_after":       scan.get("before_after", []),
+        "compliance_result":  scan.get("compliance_result", {}),
+        "remediation_plan":   scan.get("remediation_plan", {}),
+    }
+
+    # AFTER = the fresh reanalysis metrics (separate pipeline run)
+    after_snapshot = {
+        "risk_score":         ai_result["risk_score"],
+        "compliance_score":   ai_result["compliance_score"],
+        "risk_level":         ai_result["risk_level"],
+        "compliance_status":  ai_result["compliance_status"],
+        "risk_items":         total_found,
+        "violated_regulations": ai_result["violated_regulations"],
+        "entity_details":     ai_result.get("entity_details", []),
+        "detailed_findings":  ai_result.get("detailed_findings", []),
+        "remediation_plan":   ai_result.get("remediation_plan", {}),
+    }
+
+    # Persist snapshots directly in the original scan record
+    _SCAN_STORE[scan_id]["before_snapshot"] = before_snapshot
+    _SCAN_STORE[scan_id]["after_snapshot"]  = after_snapshot
     _SCAN_STORE[scan_id]["reanalysis_scan_id"] = new_scan_id
     _SCAN_STORE[scan_id]["reanalysis_result"] = {
         "scan_id": new_scan_id,
@@ -848,22 +950,8 @@ async def remediate_document(scan_id: str):
         "remediated_content": remediated_content,
         "original_length": len(original_content),
         "remediated_length": len(remediated_content),
-        "before": {
-            "risk_score": scan["risk_score"],
-            "compliance_score": scan["compliance_score"],
-            "risk_level": scan["risk_level"],
-            "compliance_status": scan["compliance_status"],
-        },
-        "after": {
-            "risk_score": ai_result["risk_score"],
-            "compliance_score": ai_result["compliance_score"],
-            "risk_level": ai_result["risk_level"],
-            "compliance_status": ai_result["compliance_status"],
-            "risk_items": total_found,
-            "violated_regulations": ai_result["violated_regulations"],
-            "detailed_findings": ai_result.get("detailed_findings", []),
-            "remediation_plan": ai_result.get("remediation_plan", {}),
-        },
+        "before": before_snapshot,
+        "after": after_snapshot,
         "report": {
             "ai_analysis": ai_result,
             "summary": (f"Remediation of {filename} complete. "
@@ -905,7 +993,8 @@ async def download_remediated(scan_id: str):
 async def reanalyze_remediated(scan_id: str):
     """
     Re-run the full compliance pipeline on the remediated document.
-    Expected result: risk ≤ 10, compliance ≥ 85, status = COMPLIANT
+    Also writes before_snapshot / after_snapshot into the original scan record
+    so the report endpoint can always build a proper before-vs-after diff.
     """
     if scan_id not in _SCAN_STORE:
         return JSONResponse(status_code=404, content={"detail": "Scan not found."})
@@ -923,7 +1012,41 @@ async def reanalyze_remediated(scan_id: str):
         remediated, f"remediated_{filename}", dataset_type
     )
 
-    # Store the reanalysis scan_id in the original scan
+    # ── Build and persist before/after snapshots ──────────────────────────
+    # BEFORE — always from the ORIGINAL scan (immutable source of truth)
+    before_snapshot = {
+        "risk_score":         scan["risk_score"],
+        "compliance_score":   scan["compliance_score"],
+        "risk_level":         scan["risk_level"],
+        "compliance_status":  scan["compliance_status"],
+        "risk_items":         int(scan.get("risk_items", 0)),
+        "violated_regulations": scan.get("violated_regulations", []),
+        "entity_details":     scan.get("entity_details", []),
+        "data_categories":    scan.get("data_categories", {}),
+        "key_findings":       scan.get("key_findings", []),
+        "data_issues":        scan.get("data_issues", []),
+        "root_causes":        scan.get("root_causes", []),
+        "before_after":       scan.get("before_after", []),
+        "compliance_result":  scan.get("compliance_result", {}),
+        "remediation_plan":   scan.get("remediation_plan", {}),
+    }
+
+    # AFTER — from the fresh pipeline reanalysis (completely independent)
+    after_snapshot = {
+        "risk_score":         ai_result["risk_score"],
+        "compliance_score":   ai_result["compliance_score"],
+        "risk_level":         ai_result["risk_level"],
+        "compliance_status":  ai_result["compliance_status"],
+        "risk_items":         total_found,
+        "violated_regulations": ai_result["violated_regulations"],
+        "entity_details":     ai_result.get("entity_details", []),
+        "detailed_findings":  ai_result.get("detailed_findings", []),
+        "remediation_plan":   ai_result.get("remediation_plan", {}),
+    }
+
+    # Persist both snapshots in the original scan record
+    _SCAN_STORE[scan_id]["before_snapshot"] = before_snapshot
+    _SCAN_STORE[scan_id]["after_snapshot"]  = after_snapshot
     _SCAN_STORE[scan_id]["reanalysis_scan_id"] = new_scan_id
     _SCAN_STORE[scan_id]["reanalysis_result"] = {
         "scan_id": new_scan_id,
@@ -941,22 +1064,8 @@ async def reanalyze_remediated(scan_id: str):
         "message": "Re-analysis complete",
         "original_scan_id": scan_id,
         "reanalysis_scan_id": new_scan_id,
-        "before": {
-            "risk_score": scan["risk_score"],
-            "compliance_score": scan["compliance_score"],
-            "risk_level": scan["risk_level"],
-            "compliance_status": scan["compliance_status"],
-        },
-        "after": {
-            "risk_score": ai_result["risk_score"],
-            "compliance_score": ai_result["compliance_score"],
-            "risk_level": ai_result["risk_level"],
-            "compliance_status": ai_result["compliance_status"],
-            "risk_items": total_found,
-            "violated_regulations": ai_result["violated_regulations"],
-            "detailed_findings": ai_result.get("detailed_findings", []),
-            "remediation_plan": ai_result.get("remediation_plan", {}),
-        },
+        "before": before_snapshot,
+        "after": after_snapshot,
         "report": {
             "ai_analysis": ai_result,
             "summary": (f"Re-analysis of remediated {filename} complete. "
@@ -1037,8 +1146,12 @@ async def generate_compliance_report(scan_id: str = Form(...), format: str = For
     scan = _SCAN_STORE[scan_id]
 
     # ── Strict rule: only generate full report for compliant/partially compliant
+    # BUT allow if remediation was applied (after_snapshot shows improved status)
     comp_status = scan.get("compliance_status", "NON_COMPLIANT")
-    if comp_status == "NON_COMPLIANT":
+    after_snap_status = scan.get("after_snapshot", {}).get("compliance_status", None)
+    has_remediation_data = bool(scan.get("before_snapshot") and scan.get("after_snapshot"))
+
+    if comp_status == "NON_COMPLIANT" and not has_remediation_data:
         risk_score = scan.get("risk_score", 100)
         violated_regs = scan.get("violated_regulations", [])
         rem_plan = scan.get("remediation_plan", {})
@@ -1055,8 +1168,27 @@ async def generate_compliance_report(scan_id: str = Form(...), format: str = For
             }
         )
 
+    # ── Inject _after_scan if remediation snapshots exist ─────────────────────
+    # This ensures the PDF generator correctly differentiates Before vs After.
+    before_snap = scan.get("before_snapshot", {})
+    after_snap  = scan.get("after_snapshot",  {})
+    merged_scan = dict(scan)
+    if before_snap and after_snap:
+        # Restore original (before) metrics as top-level fields
+        # so the generator reads BEFORE from top-level, AFTER from _after_scan
+        merged_scan.update({
+            "risk_score":         before_snap.get("risk_score",        scan.get("risk_score", 0)),
+            "compliance_score":   before_snap.get("compliance_score",  scan.get("compliance_score", 100)),
+            "risk_level":         before_snap.get("risk_level",        scan.get("risk_level", "LOW")),
+            "compliance_status":  before_snap.get("compliance_status", scan.get("compliance_status", "NON_COMPLIANT")),
+            "risk_items":         before_snap.get("risk_items",        scan.get("risk_items", 0)),
+            "entity_details":     before_snap.get("entity_details",    scan.get("entity_details", [])),
+            "_after_scan":        after_snap,
+        })
+        print(f"  [/reports/compliance] Injected _after_scan: before_risk={merged_scan['risk_score']} after_risk={after_snap.get('risk_score')}")
+
     try:
-        data = generate_compliance_report_pdf(scan)
+        data = generate_compliance_report_pdf(merged_scan)
         safe = re.sub(r"[^\w\-.]", "_", scan.get("filename", "report"))
         return StreamingResponse(
             io.BytesIO(data),
@@ -1068,8 +1200,203 @@ async def generate_compliance_report(scan_id: str = Form(...), format: str = For
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# POST-REMEDIATION REPORT: full before-vs-after PDF from two scan records
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.post("/reports/compliance-remediation")
+async def generate_remediation_report(
+    original_scan_id: str = Form(...),
+    format:           str = Form("pdf"),
+):
+    """
+    Generate a 14-section compliance PDF with real before-vs-after data.
+
+    Reads before_snapshot / after_snapshot written by /remediate or /reanalyze.
+    The before_snapshot contains ALL enriched fields from the original scan.
+    The after_snapshot contains the post-remediation metrics.
+    Both are stored directly in the original scan record — no external ID needed.
+    """
+    # ── Look up the scan ──────────────────────────────────────────────────────
+    if original_scan_id not in _SCAN_STORE:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": f"Scan '{original_scan_id}' not found. "
+                                "Ensure the backend is running and scan exists."}
+        )
+
+    orig_scan = _SCAN_STORE[original_scan_id]
+
+    # ── DIAGNOSTIC: dump all keys so we can see what's in the scan ────────────
+    print("\n╔══════════════════════════════════════════════════════════╗")
+    print("║  REPORT GENERATION — DATA DIAGNOSIS                     ║")
+    print("╚══════════════════════════════════════════════════════════╝")
+    print(f"  scan_id            : {original_scan_id}")
+    print(f"  filename           : {orig_scan.get('filename', '???')}")
+    print(f"  risk_score (top)   : {orig_scan.get('risk_score', '???')}")
+    print(f"  compliance_score   : {orig_scan.get('compliance_score', '???')}")
+    print(f"  remediation_applied: {orig_scan.get('remediation_applied', False)}")
+    print(f"  has before_snapshot: {bool(orig_scan.get('before_snapshot'))}")
+    print(f"  has after_snapshot : {bool(orig_scan.get('after_snapshot'))}")
+    print(f"  has reanalysis_result: {bool(orig_scan.get('reanalysis_result'))}")
+    print(f"  has remediated_content: {bool(orig_scan.get('remediated_content'))}")
+
+    before_snapshot = orig_scan.get("before_snapshot", {})
+    after_snapshot  = orig_scan.get("after_snapshot",  {})
+    has_remediation = bool(before_snapshot and after_snapshot)
+
+    # ── FALLBACK: If snapshots are missing but remediation WAS applied,
+    #    rebuild them from the original scan fields + reanalysis_result ─────────
+    if not has_remediation and orig_scan.get("remediation_applied"):
+        print("  ⚠ SNAPSHOTS MISSING — rebuilding from scan fields + reanalysis_result")
+        reanalysis = orig_scan.get("reanalysis_result", {})
+
+        # Before = the original scan's own metrics
+        before_snapshot = {
+            "risk_score":         orig_scan.get("risk_score", 0),
+            "compliance_score":   orig_scan.get("compliance_score", 100),
+            "risk_level":         orig_scan.get("risk_level", "LOW"),
+            "compliance_status":  orig_scan.get("compliance_status", "NON_COMPLIANT"),
+            "risk_items":         int(orig_scan.get("risk_items", 0)),
+            "violated_regulations": orig_scan.get("violated_regulations", []),
+            "entity_details":     orig_scan.get("entity_details", []),
+            "data_categories":    orig_scan.get("data_categories", {}),
+            "key_findings":       orig_scan.get("key_findings", []),
+            "data_issues":        orig_scan.get("data_issues", []),
+            "root_causes":        orig_scan.get("root_causes", []),
+            "before_after":       orig_scan.get("before_after", []),
+            "compliance_result":  orig_scan.get("compliance_result", {}),
+            "remediation_plan":   orig_scan.get("remediation_plan", {}),
+        }
+
+        # After = from the reanalysis_result, OR re-run analysis on remediated content
+        if reanalysis and reanalysis.get("risk_score") is not None:
+            after_snapshot = {
+                "risk_score":         reanalysis.get("risk_score", 0),
+                "compliance_score":   reanalysis.get("compliance_score", 100),
+                "risk_level":         reanalysis.get("risk_level", "LOW"),
+                "compliance_status":  reanalysis.get("compliance_status", "COMPLIANT"),
+                "risk_items":         reanalysis.get("risk_items", 0),
+                "violated_regulations": reanalysis.get("violated_regulations", []),
+                "entity_details":     [],
+            }
+        elif orig_scan.get("remediated_content"):
+            # Last resort: re-run pipeline on remediated content
+            print("  ⚠ No reanalysis_result either — re-running pipeline on remediated content")
+            dataset_type = orig_scan.get("dataset_type", "document")
+            filename = orig_scan.get("filename", "document.txt")
+            _, ai_result, total_found = _run_pipeline(
+                orig_scan["remediated_content"], f"remediated_{filename}", dataset_type
+            )
+            after_snapshot = {
+                "risk_score":         ai_result["risk_score"],
+                "compliance_score":   ai_result["compliance_score"],
+                "risk_level":         ai_result["risk_level"],
+                "compliance_status":  ai_result["compliance_status"],
+                "risk_items":         total_found,
+                "violated_regulations": ai_result.get("violated_regulations", []),
+                "entity_details":     ai_result.get("entity_details", []),
+            }
+        else:
+            # Nothing to work with — generate zero-risk after snapshot
+            after_snapshot = {
+                "risk_score": 0, "compliance_score": 100,
+                "risk_level": "LOW", "compliance_status": "COMPLIANT",
+                "risk_items": 0, "violated_regulations": [], "entity_details": [],
+            }
+
+        # Persist for future calls
+        _SCAN_STORE[original_scan_id]["before_snapshot"] = before_snapshot
+        _SCAN_STORE[original_scan_id]["after_snapshot"]  = after_snapshot
+        has_remediation = True
+        print("  ✓ Snapshots rebuilt successfully")
+
+    # ── Validation ────────────────────────────────────────────────────────────
+    if has_remediation:
+        before_risk = float(before_snapshot.get("risk_score", 0))
+        after_risk  = float(after_snapshot.get("risk_score",  before_risk))
+        before_comp = float(before_snapshot.get("compliance_score", 100))
+        after_comp  = float(after_snapshot.get("compliance_score",  before_comp))
+
+        # Gather counts for debug output
+        before_ents = before_snapshot.get("entity_details", [])
+        low_count = sum(1 for e in before_ents if e.get("risk_level") == "LOW")
+        medium_count = sum(1 for e in before_ents if e.get("risk_level") == "MEDIUM")
+        high_count = sum(1 for e in before_ents if e.get("risk_level") == "HIGH")
+        critical_count = sum(1 for e in before_ents if e.get("risk_level") == "CRITICAL")
+        
+        print("\n========================================")
+        print("=== REPORT DEBUG OUTPUT (MANDATORY) ===")
+        print("========================================")
+        print(f"  before_risk      : {before_risk}")
+        print(f"  after_risk       : {after_risk}")
+        print(f"  before_compliance: {before_comp}")
+        print(f"  after_compliance : {after_comp}")
+        print(f"  low_count        : {low_count}")
+        print(f"  medium_count     : {medium_count}")
+        print(f"  high_count       : {high_count}")
+        print(f"  critical_count   : {critical_count}")
+        print(f"  has_remediation  : {has_remediation}")
+        print("========================================\n")
+
+        if before_risk == after_risk and before_comp == after_comp:
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "detail": "No meaningful change detected between before and after.",
+                    "message": (
+                        "Before and After metrics are identical. "
+                        "Apply fixes first, then re-analyze."
+                    ),
+                    "before_risk": before_risk,
+                    "after_risk":  after_risk,
+                }
+            )
+    else:
+        print("  ℹ No remediation detected — report will use original scan only (no diff)")
+
+    # ── Build merged_scan for the generator ───────────────────────────────────
+    # The generator needs:
+    #   - Top-level fields: the ORIGINAL scan's enriched data (before)
+    #   - _after_scan: the after_snapshot metrics
+    if has_remediation:
+        # Use before_snapshot as the "base" scan (all enriched fields)
+        merged_scan = {
+            **orig_scan,                # preserve scan_id, filename, dataset_type, etc.
+            **before_snapshot,          # override metrics with original before-values
+            "_after_scan": after_snapshot,  # inject after metrics for the generator
+        }
+        print(f"  merged_scan['_after_scan'] risk_score = {merged_scan['_after_scan'].get('risk_score')}")
+        print(f"  merged_scan top-level risk_score = {merged_scan.get('risk_score')}")
+    else:
+        # No remediation yet — generate report from original scan only (no diff)
+        merged_scan = dict(orig_scan)
+
+    # ── Generate PDF ──────────────────────────────────────────────────────────
+    try:
+        data = generate_compliance_report_pdf(merged_scan)
+        safe = re.sub(r"[^\w\-.]", "_", orig_scan.get("filename", "report"))
+        return StreamingResponse(
+            io.BytesIO(data),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition":
+                    f'attachment; filename="Vigil_AI_Report_{safe}.pdf"'
+            }
+        )
+    except Exception as e:
+        import traceback
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Report generation failed: {e}",
+                     "trace": traceback.format_exc()[-2000:]}
+        )
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Metrics — real data only
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @app.get("/metrics")
 async def metrics(user = Depends(get_optional_user)):

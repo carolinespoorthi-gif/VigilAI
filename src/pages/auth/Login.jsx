@@ -142,7 +142,7 @@ const Login = () => {
 
             {/* VIGIL AI LOGO */}
             <div className="absolute top-12 left-1/2 -translate-x-1/2 z-40 flex justify-center w-full pointer-events-none">
-                <img src="/assets/vigilai-logo.png" alt="Vigil AI Logo" className="h-16 object-contain drop-shadow-2xl" />
+                <img src="/assets/images/vigilai-logo.png" alt="Vigil AI Logo" className="h-16 object-contain drop-shadow-2xl" style={{ background: 'transparent' }} />
             </div>
 
             {/* LEFT PANEL - USER */}

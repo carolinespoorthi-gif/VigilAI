@@ -32,8 +32,8 @@ const QA_BANK = [
   {
     id: 5,
     question: 'What is a risk score?',
-    keywords: ['risk score', 'risk level', 'score mean', 'risk rating'],
-    answer: 'A risk score (0–100) quantifies the severity of sensitive data exposure in a document. Scores are calculated based on PII types found, their quantity, and regulatory context. Critical (≥90), High (70–89), Medium (40–69), Low (10–39), None (<10). Higher scores require immediate remediation action.',
+    keywords: ['risk score', 'risk level', 'score mean', 'risk rating', 'why is my risk high', 'why high', 'risk high'],
+    answer: 'A risk score (0–100) quantifies the severity of sensitive data exposure. If your risk is HIGH (≥70), it means the system detected critical PII (like SSNs, medical IDs, or passwords) in an unsafe context. High scores require immediate remediation — such as masking or redacting the sensitive fields — to achieve COMPLIANT status.',
   },
   {
     id: 6,
@@ -44,8 +44,8 @@ const QA_BANK = [
   {
     id: 7,
     question: 'How do I fix a non-compliant document?',
-    keywords: ['fix', 'remediate', 'non-compliant', 'how to fix', 'resolve', 'remediation'],
-    answer: 'To fix a non-compliant document: (1) Go to the Remediation Centre, (2) Select the flagged document, (3) Choose fixes — mask SSNs, redact emails, remove dates of birth, etc., (4) Click "Apply Fixes" to run the Document Fixing Engine, (5) The system will re-analyze and show updated scores. Aim for Risk ≤30 and Compliance ≥80 for COMPLIANT status.',
+    keywords: ['fix', 'remediate', 'non-compliant', 'how to fix', 'resolve', 'remediation', 'how to fix this'],
+    answer: 'To fix a non-compliant document: (1) Go to the Remediation Centre, (2) Select the flagged document, (3) Choose fixes — mask SSNs, redact emails, remove passwords, etc., (4) Click "Apply Fixes" to run the Document Fixing Engine, (5) The system will re-analyze and show updated scores. Aim for Risk ≤30 and Compliance ≥80 for COMPLIANT status.',
   },
   {
     id: 8,
@@ -93,7 +93,37 @@ const QA_BANK = [
     id: 15,
     question: 'How do I generate a compliance report?',
     keywords: ['report', 'generate report', 'download report', 'compliance report', 'export'],
-    answer: 'Reports can be generated in two ways: (1) From the Monitoring page — after scanning a document, click "Generate PDF Report" or "Generate DOCX Report", (2) From the Remediation Centre — download pre-fix or post-fix reports for any flagged document. Reports include: summary of violations, risk/compliance scores, entity tables, remediation plan, and before/after comparison.',
+    answer: 'Reports can be generated in two ways: (1) From the Monitoring page — after scanning a document, click "Generate PDF Report", (2) From the Remediation Centre — download pre-fix or post-fix reports for any flagged document. Reports include: summary of violations, risk/compliance scores, entity tables, remediation plan, and before/after comparison.',
+  },
+  {
+    id: 16,
+    question: 'Explain NAAC 4.3',
+    keywords: ['naac', '4.3', 'criterion 4', 'it infrastructure'],
+    answer: 'NAAC Criterion 4.3 (IT Infrastructure) evaluates the adequacy and maintenance of IT facilities, including student-computer ratios, internet bandwidth, Wi-Fi connectivity, and robust IT policies. Vigil AI scans documents for these indicators to ensure institutional compliance with educational quality standards.',
+  },
+  {
+    id: 17,
+    question: 'What is ISO 27001?',
+    keywords: ['iso 27001', 'iso27001', 'information security standard'],
+    answer: 'ISO/IEC 27001 is the international standard for information security management systems (ISMS). It provides a framework for managing risks related to data security, ensuring confidentiality, integrity, and availability of information through a systematic approach of people, processes, and technology.',
+  },
+  {
+    id: 18,
+    question: 'What is data sovereignty?',
+    keywords: ['data sovereignty', 'data residency', 'data location'],
+    answer: 'Data sovereignty is the principle that digital data is subject to the laws of the country in which it is located. This often requires organizations to store personal data of citizens within the country\'s borders to comply with local privacy and security regulations.',
+  },
+  {
+    id: 19,
+    question: 'How does Vigil AI handle AI Ethics?',
+    keywords: ['ethics', 'ai ethics', 'responsible ai', 'bias'],
+    answer: 'Vigil AI follows responsible AI principles by ensuring transparency in its scoring logic, providing clear reasoning for every risk detected, and using deterministic models where possible to avoid bias. Our remediation engine preserves document integrity while removing only specific sensitive data points.',
+  },
+  {
+    id: 20,
+    question: 'What is a PII audit?',
+    keywords: ['audit', 'pii audit', 'data audit', 'privacy audit'],
+    answer: 'A PII audit is a systematic review of an organization\'s data storage and processing practices to identify where Personally Identifiable Information is kept and ensure it is protected according to legal and regulatory requirements. Vigil AI automates this by scanning file repositories for hidden PII.',
   },
 ];
 

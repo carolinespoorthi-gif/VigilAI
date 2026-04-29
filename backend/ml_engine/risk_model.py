@@ -426,9 +426,9 @@ class RiskModel:
 
             # Scale based on entity weights
             raw = (weight_sum / (total_entities * 3)) * 60
-            base = max(10.0, min(39.0, raw))
+            base = max(0.0, min(39.0, raw))
             if appears_masked:
-                base = max(10.0, base - 10)
+                base = max(0.0, base - 15)
             return base
 
         if has_health:

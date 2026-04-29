@@ -22,7 +22,7 @@ const RoleSelection = () => {
                 transition={{ duration: 0.8 }}
                 className="z-10 text-center mb-16 flex flex-col items-center"
             >
-                <img src="/assets/vigilai-logo.png" alt="Vigil AI Logo" className="h-28 object-contain mb-2 drop-shadow-2xl" />
+                <img src="/assets/images/vigilai-logo.png" alt="Vigil AI Logo" className="h-28 object-contain mb-2 drop-shadow-2xl" style={{ background: 'transparent' }} />
                 <p className="text-xl text-slate-400 tracking-[0.3em] uppercase font-light mt-4">AI Compliance Platform</p>
             </motion.div>
 

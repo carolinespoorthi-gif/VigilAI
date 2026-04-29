@@ -123,6 +123,91 @@ const NavLink = ({ href, children }) => (
   </a>
 );
 
+/* ─── HERO VIDEO ──────────────────────────────────────────── */
+const HeroVideo = () => {
+  const videoRef = useRef(null);
+  const [isMuted, setIsMuted] = useState(true);
+  const hasInteracted = useRef(false);
+
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      if (hasInteracted.current) return;
+      hasInteracted.current = true;
+      if (videoRef.current) {
+        videoRef.current.muted = false;
+        setIsMuted(false);
+      }
+      document.removeEventListener('click', handleFirstInteraction);
+    };
+    document.addEventListener('click', handleFirstInteraction);
+    return () => document.removeEventListener('click', handleFirstInteraction);
+  }, []);
+
+  const toggleSound = (e) => {
+    e.stopPropagation();
+    if (videoRef.current) {
+      videoRef.current.muted = !videoRef.current.muted;
+      setIsMuted(videoRef.current.muted);
+      hasInteracted.current = true;
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.15, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      style={{
+        position: 'relative',
+        width: '100%',
+        maxWidth: 560,
+        margin: '0 auto 2.5rem',
+        borderRadius: 16,
+        overflow: 'hidden',
+        boxShadow: `0 0 60px ${COLORS.teal}30, 0 20px 60px rgba(0,0,0,0.5)`,
+        border: `1px solid ${COLORS.border}`,
+      }}
+    >
+      <video
+        ref={videoRef}
+        src="/videos/hero.mp4"
+        autoPlay
+        loop
+        muted
+        playsInline
+        style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 16 }}
+      />
+      <button
+        onClick={toggleSound}
+        aria-label={isMuted ? 'Unmute video' : 'Mute video'}
+        style={{
+          position: 'absolute',
+          top: 12,
+          right: 12,
+          width: 36,
+          height: 36,
+          borderRadius: '50%',
+          background: 'rgba(0,0,0,0.6)',
+          border: `1px solid ${COLORS.border}`,
+          color: COLORS.white,
+          fontSize: 16,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10,
+          backdropFilter: 'blur(4px)',
+          transition: 'background 0.2s',
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.85)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.6)'}
+      >
+        {isMuted ? '🔇' : '🔊'}
+      </button>
+    </motion.div>
+  );
+};
+
 /* ─── HERO ────────────────────────────────────────────────── */
 const Hero = ({ onGetStarted }) => {
   const ref = useRef(null);
@@ -137,7 +222,10 @@ const Hero = ({ onGetStarted }) => {
       background: COLORS.bg }}>
       <GridBg />
 
-      <motion.div style={{ y, opacity, position: 'relative', zIndex: 2, maxWidth: 800 }}>
+      <motion.div style={{ y, opacity, position: 'relative', zIndex: 2, maxWidth: 800, width: '100%' }}>
+        {/* Hero Video */}
+        <HeroVideo />
+
         {/* Badge */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}

@@ -1,0 +1,20 @@
+NAAC Accreditation Form
+
+Name: Rahul Sharma
+Date of Birth: 12/05/2000
+Email: rahul.sharma@gmail.com
+Phone: +91-9876543210
+Address: 123, MG Road, Bangalore, India
+
+Aadhar Number: 1234 5678 9012
+PAN Number: ABCDE1234F
+
+University: XYZ Engineering College
+Department: Computer Science
+Student ID: 2021CS045
+
+Bank Account Number: 123456789012
+IFSC Code: SBIN0001234
+
+Declaration:
+I hereby declare that the above information is true and correct.

@@ -189,38 +189,36 @@ export default function RemediationCentre() {
     }
   };
 
-  const downloadReport = async (scan, fmt) => {
+  const downloadReport = async (scan) => {
     try {
-      const fixResult = fixed[scan.scan_id];
-      const reData    = reanalysisResult[scan.scan_id];
-      
-      const payload = {
-        filename:             scan.filename,
-        risk_score:           fixResult ? fixResult.newRiskScore        : scan.risk_score,
-        compliance_score:     fixResult ? fixResult.newComplianceScore  : scan.compliance_score,
-        risk_level:           fixResult ? fixResult.newRiskLevel        : scan.risk_level,
-        compliance_status:    fixResult ? fixResult.newStatus           : scan.compliance_status,
-        detailed_findings:    (reData && reData.after) ? (reData.after.detailed_findings || []) : (scan.detailed_findings || []),
-        violated_regulations: (reData && reData.after) ? (reData.after.violated_regulations || []) : (scan.violated_regulations || []),
-        remediation_plan:     (reData && reData.after) ? (reData.after.remediation_plan || {}) : (scan.remediation_plan || {}),
-      };
       const form = new FormData();
-      form.append('format', fmt);
-      form.append('payload_json', JSON.stringify(payload));
-      const resp = await fetch(`${API_BASE}/reports/generate`, { method: 'POST', body: form });
-      if (!resp.ok) throw new Error('Report failed');
+      form.append('original_scan_id', scan.scan_id);
+      form.append('format', 'pdf');
+
+      const resp = await fetch(`${API_BASE}/reports/compliance-remediation`, {
+        method: 'POST',
+        body: form,
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.message || err.detail || 'Report generation failed');
+      }
+
       const blob = await resp.blob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
-      a.href = url; a.download = `remediation_${scan.filename}.${fmt}`;
+      a.href = url;
+      a.download = `Vigil_AI_Report_${scan.filename}.pdf`;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
     } catch (e) {
-      alert(e.message);
+      alert('Report Error: ' + e.message);
     }
   };
 
   // ─────────────────────────────────────────────────────────────────────────
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -677,18 +675,11 @@ export default function RemediationCentre() {
                           {/* Action buttons */}
                           <div className="flex flex-wrap gap-3 pt-2 border-t border-border">
                             <button
-                              onClick={() => downloadReport(scan, 'pdf')}
+                              onClick={() => downloadReport(scan)}
                               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
                               style={{ background: '#0B2E33' }}>
                               <Icon name="Download" size={14} />
-                              {fixR ? 'Post-Fix PDF' : 'PDF Report'}
-                            </button>
-                            <button
-                              onClick={() => downloadReport(scan, 'docx')}
-                              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border"
-                              style={{ borderColor: '#4F7C82', color: '#0B2E33', background: '#EEF7F9' }}>
-                              <Icon name="Download" size={14} />
-                              {fixR ? 'Post-Fix DOCX' : 'DOCX Report'}
+                              {fixR ? 'Download Post-Fix Report (PDF)' : 'Download Report (PDF)'}
                             </button>
                             <button
                               onClick={() => navigate('/risk-assessment-details')}

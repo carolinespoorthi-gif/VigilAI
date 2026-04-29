@@ -4,31 +4,54 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict
 from datetime import datetime, timezone
 
-# MongoDB connection URL
-MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
+# -------------------------------
+# 🔗 MongoDB Config
+# -------------------------------
 
-# Database and collection names
+MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
 DB_NAME = "vigil_ai"
-ANALYSIS_COLLECTION = "compliance_analysis"
-USERS_COLLECTION = "users"
 
 client: AsyncIOMotorClient = None
+
+
+# -------------------------------
+# 🚀 Connection Functions
+# -------------------------------
 
 async def connect_to_mongo():
     global client
     client = AsyncIOMotorClient(MONGO_URL)
-    print("Connected to MongoDB.")
+    print("✅ Connected to MongoDB")
+
 
 async def close_mongo_connection():
     global client
     if client:
         client.close()
-        print("Closed MongoDB connection.")
+        print("❌ MongoDB connection closed")
+
 
 def get_database():
     return client[DB_NAME]
 
-# Pydantic schema for the output of the LLM analysis and DB document
+
+# -------------------------------
+# 📦 Collections
+# -------------------------------
+
+ANALYSIS_COLLECTION = "compliance_analysis"
+USERS_COLLECTION = "users"
+
+# 🔥 For your Vigil AI system
+SCANS_COLLECTION = "scans"
+REPORTS_COLLECTION = "reports"
+REMEDIATION_COLLECTION = "remediations"
+
+
+# -------------------------------
+# 📊 Schema (DO NOT REMOVE)
+# -------------------------------
+
 class ComplianceAnalysisResult(BaseModel):
     id: Optional[str] = Field(alias="_id", default=None)
     document_name: str

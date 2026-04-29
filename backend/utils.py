@@ -68,51 +68,28 @@ def extract_text_from_file(path):
 # Masking and removal rules for sensitive data
 
 def _mask_ssn(val):
-    """SSN: 123-45-6789 → ******6789"""
-    digits = re.sub(r'\D', '', val)
-    if len(digits) >= 4:
-        return '******' + digits[-4:]
-    return '******'
+    """SSN: 123-45-6789 → [SSN REDACTED] (non-matchable token)"""
+    return '[SSN REDACTED]'
 
 def _mask_cc(val):
-    """Credit Card: 4532015112830366 → **** **** **** 0366"""
-    digits = re.sub(r'\D', '', val)
-    if len(digits) >= 4:
-        return '**** **** **** ' + digits[-4:]
-    return '**** **** **** ****'
+    """Credit Card: 4532015112830366 → [CC REDACTED] (non-matchable token)"""
+    return '[CC REDACTED]'
 
 def _mask_email(val):
-    """Email: k.harris@enterprise.com → k***@enterprise.com"""
-    if '@' in val:
-        local, domain = val.split('@', 1)
-        if len(local) > 0:
-            return local[0] + '***@' + domain
-    return '***@***.com'
+    """Email: k.harris@enterprise.com → [EMAIL REDACTED]"""
+    return '[EMAIL REDACTED]'
 
 def _mask_phone(val):
-    """Phone: (702) 555-8800 → (***) ***-8800"""
-    digits = re.sub(r'\D', '', val)
-    if len(digits) >= 4:
-        return '(***) ***-' + digits[-4:]
-    return '(***) ***-****'
+    """Phone: (702) 555-8800 → [PHONE REDACTED]"""
+    return '[PHONE REDACTED]'
 
 def _mask_aadhaar(val):
-    """Aadhaar: 4567 8912 3456 → XXXX-XXXX-3456"""
-    digits = re.sub(r'\D', '', val)
-    if len(digits) >= 4:
-        return 'XXXX-XXXX-' + digits[-4:]
-    return 'XXXX-XXXX-****'
+    """Aadhaar → [AADHAAR REDACTED]"""
+    return '[AADHAAR REDACTED]'
 
 def _mask_name(val):
-    """Name: Rahul Sharma → R**** S******"""
-    parts = val.strip().split()
-    masked_parts = []
-    for p in parts:
-        if len(p) > 1:
-            masked_parts.append(p[0] + '*' * (len(p) - 1))
-        else:
-            masked_parts.append(p + '****')
-    return ' '.join(masked_parts)
+    """Name → [NAME REDACTED]"""
+    return '[NAME REDACTED]'
 
 def _mask_address(val):
     """Address → [ADDRESS REDACTED]"""
@@ -123,10 +100,8 @@ def _mask_dob(val):
     return '[DOB REDACTED]'
 
 def _mask_passport(val):
-    """Passport → ***XXXX (last 4)"""
-    if len(val) >= 4:
-        return '***' + val[-4:]
-    return '***'
+    """Passport → [PASSPORT REDACTED]"""
+    return '[PASSPORT REDACTED]'
 
 
 def remediate_text(content: str, findings: dict) -> str:
